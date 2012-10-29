@@ -1,5 +1,15 @@
 #!/usr/bin/env perl
 
 use App::Photosync;
+use Getopt::Long;
 
-App::Photosync->new->run;
+my %opts;
+
+GetOptions(
+  "source=s"   => \($opts{source}),
+  "dest=s"     => \($opts{dest}),
+  "secret=s"   => \($opts{secret}),
+  "key=s"      => \($opts{key}),
+);
+
+App::Photosync->new(%opts)->run;
