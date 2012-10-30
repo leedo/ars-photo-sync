@@ -79,7 +79,12 @@ sub handle_image {
 
   $cv->cb(sub {
     $self->{cv}->end;
-    shift->recv and die "image resize failed $error";
+    my $e = shift->recv;
+
+    if ($e) {
+      $self->log("image resize failed $error");
+      return;
+    }
 
     $self->log("watermarking $path");
     my @cmd = (qw/composite -watermark %30 -gravity southeast/,
@@ -93,7 +98,12 @@ sub handle_image {
 
     $cv->cb(sub {
       $self->{cv}->end;
-      shift->recv and die "image watermark failed $error";
+      my $e = shift->recv;
+
+      if ($e) {
+        $self->log("image resize failed $error");
+        return;
+      }
 
       $path =~ s/^\Q$self->{source}\E/$self->{dest}/;
       $self->{cv}->begin;

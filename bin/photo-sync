@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-use App::Photosync::HTTPD;
+use App::Photosync::Launcher;
 use Getopt::Long;
 use Cwd;
 
@@ -22,4 +22,4 @@ for (qw/watermark source/) {
   }
 }
 
-App::Photosync::HTTPD->new(%opts)->listen;
+App::Photosync::Launcher->launch(%opts)->listen;
