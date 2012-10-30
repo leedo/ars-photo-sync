@@ -4,7 +4,7 @@
 # required to use the MagickCore library.
 #
 
-prefix=$MAGICK_HOME
+prefix=/Users/leedo/src/ars-photo-sync/ext/imagemagick
 exec_prefix=${prefix}
 
 usage="\
@@ -35,7 +35,7 @@ while test $# -gt 0; do
       echo $exec_prefix
       ;;
     --version)
-      echo '6.7.9 Q16 '
+      echo '6.8.0 Q8 '
       ;;
     --cflags)
       pkg-config --cflags MagickCore

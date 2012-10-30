@@ -5,25 +5,25 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libMagickCore.5.dylib'
+dlname='libMagickCore.6.dylib'
 
 # Names of this library.
-library_names='libMagickCore.5.dylib libMagickCore.dylib'
+library_names='libMagickCore.6.dylib libMagickCore.dylib'
 
 # The name of the static archive.
 old_library=''
 
 # Linker flags that can not go in dependency_libs.
-inherited_linker_flags='  -fopenmp -pthread'
+inherited_linker_flags='  -pthread'
 
 # Libraries that this one depends upon.
-dependency_libs=' -R/usr/X11/lib -L$MAGICK_HOME-6/jpeg/.libs -L$MAGICK_HOME-6/jpeg -L$MAGICK_HOME-6/lcms/src/.libs -L$MAGICK_HOME-6/lcms/src -L$MAGICK_HOME-6/magick -L$MAGICK_HOME-6/png/.libs -L$MAGICK_HOME-6/png -L$MAGICK_HOME-6/wand -L/usr/X11/lib -L/opt/X11/lib $MAGICK_HOME/lib/liblcms2.la -lfreetype -lXext -lSM -lICE -lX11 -lXt -lbz2 -lz -lm -lgomp -lpthread'
+dependency_libs=' -L/opt/X11/lib -lbz2 -lz -lltdl -lm -lpthread'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
 
 # Version information for libMagickCore.
-current=5
+current=6
 age=0
 revision=0
 
@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='$MAGICK_HOME/lib'
+libdir='/Users/leedo/src/ars-photo-sync/ext/imagemagick/lib'
