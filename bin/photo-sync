@@ -5,6 +5,7 @@ use Getopt::Long;
 use Cwd;
 
 my %opts;
+$| = 1;
 
 GetOptions(
   "source=s"    => \($opts{source}),
