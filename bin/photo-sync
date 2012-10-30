@@ -7,9 +7,10 @@ my %opts;
 
 GetOptions(
   "source=s"   => \($opts{source}),
-  "dest=s"     => \($opts{dest}),
+  "event=s"     => \($opts{event}),
   "secret=s"   => \($opts{secret}),
   "key=s"      => \($opts{key}),
+  "bucket=s"   => \($opts{bucket}),
 );
 
 App::Photosync->new(%opts)->run;

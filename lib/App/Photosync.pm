@@ -14,14 +14,18 @@ use MIME::Base64 qw/encode_base64/;
 sub new {
   my ($class, %args) = @_;
 
-  for (qw/source dest secret key/) {
+  for (qw/source event bucket secret key/) {
     die "$_ is required" unless defined $args{$_};
   }
 
+  $args{bucket} =~ s{(^/|/$)}{};
+  $args{event} =~ s{^/}{};
+
   return bless {
     source   => Cwd::abs_path($args{source}),
-    dest     => $args{dest},
-    aws      => [ @args{qw/key secret/} ],
+    dest     => "/$args{bucket}/$args{event}/images",
+    bucket   => $args{bucket},
+    keys     => [ @args{qw/key secret/} ],
     seen     => {},
     cv       => AE::cv,
     filter   => sub {
@@ -50,6 +54,7 @@ sub run {
   };
 
   $self->{cv}->recv;
+  say "all done!";
 }
 
 sub handle_event {
@@ -91,7 +96,7 @@ sub upload_file {
     <$fh>;
   };
 
-  my ($key, $secret) = @{$self->{aws}};
+  my ($key, $secret) = @{$self->{keys}};
   my %h = (
     "Content-Md5" => encode_base64(md5($body), ""),
     "Content-Type" => "image/jpeg",
