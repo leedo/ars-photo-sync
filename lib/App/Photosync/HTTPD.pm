@@ -124,6 +124,7 @@ sub shutdown {
   my ($self, $httpd, $req) = @_;
   $self->log("shutting down");
   $self->success($req);
+  $self->{worker}->stop if $self->{worker};
   $self->{cv}->end;
 }
 

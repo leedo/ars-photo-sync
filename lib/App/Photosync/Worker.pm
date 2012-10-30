@@ -53,10 +53,10 @@ sub start {
 
 sub stop {
   my $self = shift;
+  $self->{cv}->end;
   $self->log("stopped");
   $self->{fs}->stop;
   delete $self->{io};
-  $self->{cv}->end;
 }
 
 sub handle_event {
