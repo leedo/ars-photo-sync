@@ -125,12 +125,12 @@
 
         function sync_state(data) {
           if (data.working) {
-            options.find("input[disabled]").attr("disabled", "disabled");
+            options.find("input").attr("disabled", true);
             $('#stop').show();
             $('#start').hide();
           }
           else {
-            options.find("input[disabled]").removeAttr("disabled");
+            options.find("input").attr("disabled", false);
             $('#stop').hide();
             $('#start').show();
           }
