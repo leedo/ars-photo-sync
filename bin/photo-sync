@@ -6,11 +6,12 @@ use Getopt::Long;
 my %opts;
 
 GetOptions(
-  "source=s"   => \($opts{source}),
+  "source=s"    => \($opts{source}),
+  "watermark=s" => \($opts{watermark}),
   "event=s"     => \($opts{event}),
-  "secret=s"   => \($opts{secret}),
-  "key=s"      => \($opts{key}),
-  "bucket=s"   => \($opts{bucket}),
+  "secret=s"    => \($opts{secret}),
+  "key=s"       => \($opts{key}),
+  "bucket=s"    => \($opts{bucket}),
 );
 
 App::Photosync->new(%opts)->run;
