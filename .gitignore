@@ -2,6 +2,8 @@ launch.sh
 images
 .DS_Store
 *.app
+*.zip
 make-app.sh
 logo.png
 *.swp
+ext/perl
