@@ -45,9 +45,12 @@ sub start {
     $self->{seen}{$File::Find::name} = (stat($File::Find::name))[9];
   }, $self->{source});
 
-  my $fs = $self->{fs} = Mac::FSEvents->new({path => $self->{source}});
+  my $fs = $self->{fs} = Mac::FSEvents->new({
+    path => $self->{source},
+    latency => 0.5,
+  });
+
   $self->{io} = AE::io $fs->watch, 0, sub {
-    $self->log("got a filesystem event");
     $self->handle_event($_) for $fs->read_events;
   };
 }
@@ -62,6 +65,7 @@ sub stop {
 
 sub handle_event {
   my ($self, $event) = @_;
+  $self->log("got a filesystem event in " . $event->path);
   my $add = $self->scandir($event->path);
   $self->handle_image($_) for @$add;
 }
