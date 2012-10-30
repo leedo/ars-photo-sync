@@ -4,10 +4,7 @@ use File::Find;
 use Mac::FSEvents;
 use AnyEvent;
 use AnyEvent::Util ();
-use AnyEvent::HTTP ();
-use Digest::MD5 qw/md5/;
-use Digest::HMAC_SHA1 qw/hmac_sha1/;
-use MIME::Base64 qw/encode_base64/;
+use App::Photosync::S3;
 
 sub new {
   my ($class, %args) = @_;
@@ -23,7 +20,7 @@ sub new {
     source    => $args{source},
     watermark => $args{watermark},
     dest      => "/$args{bucket}/$args{event}/images",
-    keys      => [ @args{qw/key secret/} ],
+    s3        => App::Photosync::S3->new(@args{qw/key secret/}),
     seen      => {},
     cv        => $args{cv},
     log       => $args{log} || sub { warn @_ },
@@ -97,8 +94,19 @@ sub handle_image {
     $cv->cb(sub {
       $self->{cv}->end;
       shift->recv and die "image watermark failed $error";
+
       $path =~ s/^\Q$self->{source}\E/$self->{dest}/;
-      $self->upload_image($path, $watermarked);
+      $self->{cv}->begin;
+      $self->{s3}->put($path, $watermarked, "image/jpeg", sub {
+        my ($body, $headers) = @_;
+        $self->log("upload complete: $headers->{Status}");
+        if ($headers->{Status} != 200) {
+          $body =~ s/</&lt;/;
+          $body =~ s/>/&gt;/;
+          $self->log("$headers->{Reason}<br><pre>$body</pre>");
+        }
+        $self->{cv}->end; 
+      });
     });
   });
 }
@@ -120,36 +128,6 @@ sub scan_source {
 
   $self->{seen} = \%all;
   return (\@add, \@del);
-}
-
-sub upload_image {
-  my ($self, $path, $image) = @_;
-
-  $self->log("uploading $path");
-  my ($key, $secret) = @{$self->{keys}};
-  my %h = (
-    "Content-Md5" => encode_base64(md5($image), ""),
-    "Content-Type" => "image/jpeg",
-    "Date" =>  AnyEvent::HTTP::format_date time,
-  );
-
-  my $sig = hmac_sha1
-    join("\n", "PUT", @h{qw/Content-Md5 Content-Type Date/}, $path),
-    $secret;
-
-  $h{Authorization} = "AWS $key:".encode_base64($sig, "");
-
-  $self->{cv}->begin;
-
-  AnyEvent::HTTP::http_request
-    PUT => "http://s3.amazonaws.com$path",
-    headers => \%h,
-    body => $image,
-    sub {
-      my ($body, $headers) = @_;
-      $self->log("upload complete: $headers->{Status}");
-      $self->{cv}->end; 
-    };
 }
 
 1;

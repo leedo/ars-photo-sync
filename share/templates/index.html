@@ -46,12 +46,16 @@
         margin-bottom: 10px;
         width: 300px;
       }
+      fieldset.log {
+        width: 500px;
+        padding: 0;
+      }
       ol#log {
         height: 300px;
-        overflow: scroll;
+        overflow: auto;
         list-style: none;
         margin: 0;
-        padding: 0;
+        padding: 10px;
       }
       ol#log li {
         margin: 0;
@@ -67,12 +71,6 @@
         <label for="source">Local image directory</label>
         <input disabled type="text" id="source" name="source" value="<?= $opt->{source} || "" ?>">
 
-        <label for="watermark">Local watermark file</label>
-        <input disabled type="text" id="watermark" name="watermark" value="<?= $opt->{watermark} || "" ?>">
-
-        <label for="bucket">Bucket</label>
-        <input disabled type="text" id="bucket" name="bucket" value="<?= $opt->{bucket} || "" ?>">
-
         <label for="event">Event</label>
         <input disabled type="text" id="event" name="event" value="<?= $opt->{event} || "" ?>">
 
@@ -83,7 +81,7 @@
       <button id="start">Start monitoring</button>
       <button id="stop">Stop monitoring</button>
     </div>
-    <fieldset>
+    <fieldset class="log">
       <legend>Log</legend>
       <ol id="log">
         <? foreach my $line (@$log) { ?>

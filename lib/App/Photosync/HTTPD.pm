@@ -1,5 +1,6 @@
 package App::Photosync::HTTPD;
 
+use v5.12;
 use JSON;
 use AnyEvent::HTTPD;
 use Text::MicroTemplate::File;
@@ -8,7 +9,18 @@ use App::Photosync::Worker;
 sub new {
   my ($class, %args) = @_;
 
-  my $httpd = AnyEvent::HTTPD->new(port => $args{port} || 9000);
+  for (qw/watermark bucket port/) {
+    die "$_ is required" unless defined $args{$_};
+  }
+
+  # some defaults for worker
+  $args{source} = "$ENV{HOME}/Pictures"
+    unless defined $args{source};
+
+  $args{event} = "test"
+    unless defined $args{event};
+
+  my $httpd = AnyEvent::HTTPD->new(port => $args{port});
   my $self = bless {
     options => {%args},
     log     => [],
@@ -30,12 +42,22 @@ sub new {
   );
 
   $self->log("starting http server");
+
+  local $SIG{__DIE__} = sub {
+    $self->log("ERROR: " . join "", @_);
+  };
+
+  local $SIG{__WARN__} = sub {
+    $self->log("ERROR: " . join "", @_);
+  };
+
   return $self;
 }
 
 sub listen {
   my $self = shift;
   $self->{cv}->begin;
+  say "Location: http://localhost:".$self->{options}{port};
   $self->{cv}->recv;
 }
 
@@ -66,7 +88,7 @@ sub start {
 
   $self->{worker} = App::Photosync::Worker->new(
     cv => $self->{cv},
-    log => sub { unshift @{$self->{log}}, "Worker: " . join ",", @_  },
+    log => sub { $self->log(@_) },
     %{$self->{options}}
   );
 
