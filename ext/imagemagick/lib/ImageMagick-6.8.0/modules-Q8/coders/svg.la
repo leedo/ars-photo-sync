@@ -17,7 +17,7 @@ old_library=''
 inherited_linker_flags='  -pthread'
 
 # Libraries that this one depends upon.
-dependency_libs=' -L/opt/X11/lib /Users/leedo/src/ars-photo-sync/ext/imagemagick/lib/libMagickWand.la /Users/leedo/src/ars-photo-sync/ext/imagemagick/lib/libMagickCore.la -lbz2 -lltdl -lpthread -lxml2 -lz -lm'
+dependency_libs=' -L/usr/local/Cellar/fontconfig/2.10.1/lib /Users/leedo/src/ars-photo-sync/ext/imagemagick/lib/libMagickWand.la /Users/leedo/src/ars-photo-sync/ext/imagemagick/lib/libMagickCore.la -lfontconfig -lbz2 -lltdl -lpthread -lxml2 -lz -lm'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
