@@ -74,7 +74,7 @@ sub handle_image {
   my ($self, $path) = @_;
 
   $self->log("resizing $path");
-  my @cmd = (qw/convert -resize 640x480^/, $path, '-');
+  my @cmd = (qw/convert -auto-orient -resize 640x480^/, $path, '-');
 
   $self->{cv}->begin;
   my $cv = AnyEvent::Util::run_cmd [@cmd],
