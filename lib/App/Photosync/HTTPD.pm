@@ -42,15 +42,6 @@ sub new {
   );
 
   $self->log("starting http server");
-
-  local $SIG{__DIE__} = sub {
-    $self->log("ERROR: " . join "", @_);
-  };
-
-  local $SIG{__WARN__} = sub {
-    $self->log("ERROR: " . join "", @_);
-  };
-
   return $self;
 }
 

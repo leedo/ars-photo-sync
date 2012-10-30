@@ -26,7 +26,7 @@ sub new {
     log       => $args{log} || sub { warn @_ },
     filter    => sub {
       my $f = shift;
-      -f $f && $f =~ /(?:jpg|png|gif)$/i && (stat($f))[7] > 0;
+      -f $f && $f =~ /\.(?:jpe?g|png|gif)$/i;
     },
   }, $class;
 }
@@ -39,10 +39,11 @@ sub log {
 sub start {
   my $self = shift;
   $self->{cv}->begin;
+  $self->log("starting worker");
 
-  $self->log("starting");
-  $self->log("initial scan");
-  $self->scan_source;
+  File::Find::find(sub {
+    $self->{seen}{$File::Find::name} = (stat($File::Find::name))[9];
+  }, $self->{source});
 
   my $fs = $self->{fs} = Mac::FSEvents->new({path => $self->{source}});
   $self->{io} = AE::io $fs->watch, 0, sub {
@@ -61,7 +62,7 @@ sub stop {
 
 sub handle_event {
   my ($self, $event) = @_;
-  my ($add, $del) = $self->scan_source;
+  my $add = $self->scandir($event->path);
   $self->handle_image($_) for @$add;
 }
 
@@ -121,23 +122,22 @@ sub handle_image {
   });
 }
 
-sub scan_source {
-  my $self = shift;
-  my (%all, @add, @del);
+sub scandir {
+  my ($self, $dir) = @_;
+  $dir =~ s/\/$//; #trailing slash
+  opendir my $fh, $dir;
 
-  File::Find::find sub {
-    my $path = $File::Find::name;
-    return unless $self->{filter}->($path);
-    push @add, $path unless $self->{seen}{$path};
-    $all{$path} = 1;
-  }, $self->{source};
-
-  foreach my $path (keys %{$self->{seen}}) {
-    push @del, $path unless $all{$path};
-  } 
-
-  $self->{seen} = \%all;
-  return (\@add, \@del);
+  return [ 
+    grep {
+      my $mtime = (stat($_))[9];
+      my $prev = $self->{seen}{$_} || 0;
+      $self->{seen}{$_} = $mtime;
+      $prev != $mtime;
+    }
+    grep { $self->{filter}->($_) }
+     map { "$dir/$_" }
+    readdir $fh
+  ];
 }
 
 1;
