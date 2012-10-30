@@ -1,0 +1,149 @@
+? my ($opt, $log) = @_;
+
+<html>
+  <head>
+    <title>Ars Photo Sync</title>
+    <style type="text/css">
+      html {
+        font-family: sans-serif;
+        font-size: 12px;
+      }
+      fieldset {
+        border: 1px solid #ccc;
+      }
+      legend {
+        color: #aaa;
+      }
+      form {
+        margin: 0;
+        padding: 0;
+        display: block;
+      }
+      div.controls,
+      fieldset.settings {
+        display: block;
+        float: left;
+        clear: left;
+        padding: 10px;
+      }
+      div.controls {
+        width: 300;
+      }
+      div.controls button {
+        display: block;
+        float: right;
+        margin: 0;
+      }
+      fieldset.settings input,
+      fieldset.settings label {
+        display: block;
+        margin: 0;
+      }
+      fieldset.settings label {
+        margin-bottom: 3px;
+      }
+      fieldset.settings input[type="text"] {
+        margin-bottom: 10px;
+        width: 300px;
+      }
+      ol#log {
+        height: 300px;
+        overflow: scroll;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      ol#log li {
+        margin: 0;
+        padding: 0;
+      }
+      #start, #stop { display: none }
+    </style>
+  </head>
+  <body>
+    <fieldset class="settings">
+      <legend>Settings</legend>
+      <form action="/options" method="POST" id="options">
+        <label for="source">Local image directory</label>
+        <input disabled type="text" id="source" name="source" value="<?= $opt->{source} || "" ?>">
+
+        <label for="watermark">Local watermark file</label>
+        <input disabled type="text" id="watermark" name="watermark" value="<?= $opt->{watermark} || "" ?>">
+
+        <label for="bucket">Bucket</label>
+        <input disabled type="text" id="bucket" name="bucket" value="<?= $opt->{bucket} || "" ?>">
+
+        <label for="event">Event</label>
+        <input disabled type="text" id="event" name="event" value="<?= $opt->{event} || "" ?>">
+
+        <input disabled type="submit" value="Save options">
+      </form>
+    </fieldset>
+    <div class="controls">
+      <button id="start">Start monitoring</button>
+      <button id="stop">Stop monitoring</button>
+    </div>
+    <fieldset>
+      <legend>Log</legend>
+      <ol id="log">
+        <? foreach my $line (@$log) { ?>
+        <li><?= $line ?></li>
+        <? } ?>
+      </ol>
+    </fieldset>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function() {
+        var log = $('#log');
+        var options = $('#options');
+
+        $('#start').on('click', function() {
+          $.ajax({
+            type: "POST",
+            url: "/start",
+            dataType: "json",
+            success: sync_state
+          });
+        });
+
+        $('#stop').on('click', function() {
+          $.ajax({
+            type: "POST",
+            url: "/stop",
+            dataType: "json",
+            success: sync_state
+          });
+        });
+
+        setInterval(function() {
+          $.ajax({
+            type: "GET",
+            url: "/state",
+            dataType: "json",
+            success: sync_state
+          });
+        }, 1000);
+
+        function sync_state(data) {
+          if (data.working) {
+            options.find("input[disabled]").attr("disabled", "disabled");
+            $('#stop').show();
+            $('#start').hide();
+          }
+          else {
+            options.find("input[disabled]").removeAttr("disabled");
+            $('#stop').hide();
+            $('#start').show();
+          }
+
+          log.html(
+            $.map(data.log, function(line) {
+              return $('<li/>').html(line);
+            })
+          );
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,7 +1,8 @@
 #!/usr/bin/env perl
 
-use App::Photosync;
+use App::Photosync::HTTPD;
 use Getopt::Long;
+use Cwd;
 
 my %opts;
 
@@ -12,6 +13,13 @@ GetOptions(
   "secret=s"    => \($opts{secret}),
   "key=s"       => \($opts{key}),
   "bucket=s"    => \($opts{bucket}),
+  "port=i"      => \($opts{port}),
 );
 
-App::Photosync->new(%opts)->run;
+for (qw/watermark source/) {
+  if (defined $opts{$_}) {
+    $opts{$_} = Cwd::abs_path($opts{$_});
+  }
+}
+
+App::Photosync::HTTPD->new(%opts)->listen;

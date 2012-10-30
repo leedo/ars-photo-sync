@@ -1,3 +1,7 @@
 launch.sh
 images
 .DS_Store
+*.app
+make-app.sh
+logo.png
+*.swp
