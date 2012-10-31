@@ -9,7 +9,7 @@ use App::Photosync::Worker;
 sub new {
   my ($class, %args) = @_;
 
-  for (qw/watermark bucket port key secret/) {
+  for (qw/watermark port s3/) {
     die "$_ is required" unless defined $args{$_};
   }
 
@@ -20,17 +20,24 @@ sub new {
   $args{event} = "test"
     unless defined $args{event};
 
-  my $s3 = App::Photosync::S3->new(@args{qw/bucket key secret/});
-  my $httpd = AnyEvent::HTTPD->new(port => $args{port});
   my $self = bless {
-    options => {%args},
-    s3      => $s3,
-    httpd   => $httpd,
+    options => {map {$_ => $args{$_}} qw/watermark event source/},
+    s3      => $args{s3},
     cv      => AE::cv,
     template => Text::MicroTemplate::File->new(
       include_path => ["share/templates"],
     ),
   }, $class;
+
+  $self->{httpd} = $self->_build_httpd($args{port});
+
+  $self->log("starting http server");
+  return $self;
+}
+
+sub _build_httpd {
+  my ($self, $port) = @_;
+  my $httpd = AnyEvent::HTTPD->new(port => $port);
 
   $httpd->reg_cb(
     "/options"  => sub { $self->options(@_) },
@@ -42,14 +49,13 @@ sub new {
     ""          => sub { $self->default(@_) },
   );
 
-  $self->log("starting http server");
-  return $self;
+  say "Location: http://localhost:$port";
+  return $httpd;
 }
 
 sub listen {
   my $self = shift;
   $self->{cv}->begin;
-  say "Location: http://localhost:".$self->{options}{port};
   $self->{cv}->recv;
 }
 
