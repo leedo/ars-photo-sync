@@ -9,18 +9,15 @@ use App::Photosync::S3;
 sub new {
   my ($class, %args) = @_;
 
-  for (qw/source event bucket secret key cv/) {
+  for (qw/source event s3 cv/) {
     die "$_ is required" unless defined $args{$_};
   }
-
-  $args{bucket} =~ s{(^/|/$)}{};
-  $args{event} =~ s{^/}{};
 
   return bless {
     source    => $args{source},
     watermark => $args{watermark},
-    dest      => "/$args{bucket}/$args{event}/images",
-    s3        => App::Photosync::S3->new(@args{qw/key secret/}),
+    event     => $args{event},
+    s3        => $args{s3},
     seen      => {},
     cv        => $args{cv},
     log       => $args{log} || sub { warn @_ },
@@ -110,7 +107,7 @@ sub handle_image {
         return;
       }
 
-      $path =~ s/^\Q$self->{source}\E/$self->{dest}/;
+      $path =~ s/^\Q$self->{source}\E/$self->{event}\/images/;
       $self->{cv}->begin;
       $self->{s3}->put($path, $watermarked, "image/jpeg", sub {
         my ($body, $headers) = @_;

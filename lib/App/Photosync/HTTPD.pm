@@ -9,7 +9,7 @@ use App::Photosync::Worker;
 sub new {
   my ($class, %args) = @_;
 
-  for (qw/watermark bucket port/) {
+  for (qw/watermark bucket port key secret/) {
     die "$_ is required" unless defined $args{$_};
   }
 
@@ -20,10 +20,11 @@ sub new {
   $args{event} = "test"
     unless defined $args{event};
 
+  my $s3 = App::Photosync::S3->new(@args{qw/bucket key secret/});
   my $httpd = AnyEvent::HTTPD->new(port => $args{port});
   my $self = bless {
     options => {%args},
-    log     => [],
+    s3      => $s3,
     httpd   => $httpd,
     cv      => AE::cv,
     template => Text::MicroTemplate::File->new(
@@ -80,6 +81,7 @@ sub start {
   $self->{worker} = App::Photosync::Worker->new(
     cv => $self->{cv},
     log => sub { $self->log(@_) },
+    s3 => $self->{s3},
     %{$self->{options}}
   );
 
