@@ -30,8 +30,6 @@ sub new {
   }, $class;
 
   $self->{httpd} = $self->_build_httpd($args{port});
-
-  $self->log("starting http server");
   return $self;
 }
 
@@ -50,6 +48,7 @@ sub _build_httpd {
   );
 
   say "Location: http://localhost:$port";
+  $self->log("listening on port $port");
   return $httpd;
 }
 
@@ -86,11 +85,12 @@ sub start {
 
   $self->{worker} = App::Photosync::Worker->new(
     cv => $self->{cv},
-    log => sub { $self->log(@_) },
+    log => sub { push @{$self->{log}}, @_ },
     s3 => $self->{s3},
     %{$self->{options}}
   );
 
+  $self->log("starting worker");
   $self->{worker}->start;
   $self->success($req);
 }
@@ -129,7 +129,8 @@ sub shutdown {
 
 sub log {
   my ($self, $message) = @_;
-  push @{$self->{log}}, $message;
+  my ($package) = caller;
+  push @{$self->{log}}, __PACKAGE__ . ": $message";
 }
 
 sub respond {

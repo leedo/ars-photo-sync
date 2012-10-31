@@ -30,17 +30,19 @@ sub new {
 
 sub log {
   my $self = shift;
-  $self->{log}->($_) for @_;
+  $self->{log}->(__PACKAGE__.": $_") for @_;
 }
 
 sub start {
   my $self = shift;
   $self->{cv}->begin;
-  $self->log("starting worker");
+  $self->log("starting", "scanning $self->{source}");
 
   File::Find::find(sub {
     $self->{seen}{$File::Find::name} = (stat($File::Find::name))[9];
   }, $self->{source});
+
+  $self->log("monitoring $self->{source} for changes");
 
   my $fs = $self->{fs} = Mac::FSEvents->new({
     path => $self->{source},
