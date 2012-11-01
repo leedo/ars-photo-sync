@@ -6,6 +6,8 @@ use AnyEvent::Util ();
 use App::Photosync::S3;
 use App::Photosync::HTTPD;
 
+my @s;
+
 sub launch {
   my ($class, %args) = @_;
   
@@ -17,6 +19,7 @@ sub launch {
     AnyEvent::Util::run_cmd ["open","http://localhost:$args{port}"];
   };
 
+  push @s, map {AE::signal $_ => sub {$httpd->shutdown}} qw/INT TERM/;
   return $httpd;
 }
 

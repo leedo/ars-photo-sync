@@ -41,7 +41,6 @@ sub _build_httpd {
     "/options"  => sub { $self->options(@_) },
     "/start"    => sub { $self->start(@_) },
     "/stop"     => sub { $self->stop(@_) },
-    "/shutdown" => sub { $self->shutdown(@_) },
     "/dirs"     => sub { $self->homedir(@_) },
     "/"         => sub { $self->html(@_) },
     ""          => sub { $self->default(@_) },
@@ -56,6 +55,7 @@ sub listen {
   my $self = shift;
   $self->{cv}->begin;
   $self->{cv}->recv;
+  say "done";
 }
 
 sub default {
@@ -120,9 +120,8 @@ sub options {
 }
 
 sub shutdown {
-  my ($self, $httpd, $req) = @_;
+  my $self = shift;
   $self->log("shutting down");
-  $self->success($req);
   $self->{worker}->stop if $self->{worker};
   $self->{cv}->end;
 }
