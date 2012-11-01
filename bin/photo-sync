@@ -15,6 +15,7 @@ GetOptions(
   "key=s"       => \($opts{key}),
   "bucket=s"    => \($opts{bucket}),
   "port=i"      => \($opts{port}),
+  "browser"     => \($opts{browser}),
 );
 
 for (qw/watermark source/) {
