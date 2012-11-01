@@ -119,22 +119,39 @@
             type: "GET",
             url: "/state",
             dataType: "json",
-            success: sync_state
+            success: sync_state,
+            error: sync_error
           });
         }, 1000);
 
-        function sync_state(data) {
-          if (data.working) {
-            options.find("input").attr("disabled", true);
-            $('#stop').show();
-            $('#start').hide();
-          }
-          else {
-            options.find("input").attr("disabled", false);
-            $('#stop').hide();
-            $('#start').show();
-          }
+        function sync_error(req, e) {
+          log.html("app not running");
+          disable_options();
+          $('#start,#stop').hide();
+        }
 
+        function disable_options() {
+          options.find("input").attr("disabled", true);
+        }
+
+        function enable_options() {
+          options.find("input").attr("disabled", false);
+        }
+
+        function stopped() {
+          enable_options();
+          $('#stop').hide();
+          $('#start').show();
+        }
+
+        function started() {
+          disable_options();
+          $('#stop').show();
+          $('#start').hide();
+        }
+
+        function sync_state(data) {
+          data.working ? started() : stopped();
           log.html(
             $.map(data.log, function(line) {
               return $('<li/>').html(line);
