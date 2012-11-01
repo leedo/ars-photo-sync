@@ -81,8 +81,6 @@ sub start {
     return;
   }
 
-  $self->{cv}->begin;
-
   $self->{worker} = App::Photosync::Worker->new(
     cv => $self->{cv},
     log => sub { push @{$self->{log}}, @_ },
@@ -121,9 +119,10 @@ sub options {
 
 sub shutdown {
   my $self = shift;
-  $self->log("shutting down");
   $self->{worker}->stop if $self->{worker};
+  delete $self->{worker};
   $self->{cv}->end;
+  $self->log("shutting down");
 }
 
 sub log {
