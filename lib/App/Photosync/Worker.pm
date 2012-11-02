@@ -8,23 +8,19 @@ use App::Photosync::S3;
 
 sub new {
   my ($class, %args) = @_;
+  my @required = qw/source event s3 watermark cv/;
 
-  for (qw/source event s3 cv/) {
+  for (@required) {
     die "$_ is required" unless defined $args{$_};
   }
 
   return bless {
-    source    => $args{source},
-    watermark => $args{watermark},
-    event     => $args{event},
-    s3        => $args{s3},
-    seen      => {},
-    cv        => $args{cv},
     log       => $args{log} || sub { warn @_ },
     filter    => sub {
       my $f = shift;
       -f $f && $f =~ /\.(?:jpe?g|png|gif)$/i;
     },
+    map {$_ => $args{$_}} @required
   }, $class;
 }
 
