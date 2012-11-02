@@ -1,7 +1,7 @@
 package App::Photosync::Worker;
 
 use File::Find;
-use Mac::FSEvents;
+use Mac::FSEvents ':flags';
 use AnyEvent;
 use AnyEvent::Util ();
 use App::Photosync::S3;
@@ -43,10 +43,12 @@ sub start {
   }, $self->{source});
 
   $self->log("monitoring $self->{source} for changes");
+  my ($r) = split ".", `uname -r`;
 
   my $fs = $self->{fs} = Mac::FSEvents->new({
     path => $self->{source},
     latency => 0.5,
+    flags => $r > 11 ? FILE_EVENTS : NONE,
   });
 
   $self->{io} = AE::io $fs->watch, 0, sub {
@@ -64,9 +66,15 @@ sub stop {
 
 sub handle_event {
   my ($self, $event) = @_;
-  $self->log("got a filesystem event in " . $event->path);
-  my $add = $self->scandir($event->path);
-  $self->handle_image($_) for @$add;
+  my $path = $event->path;
+  if (-d $path) {
+    $self->log("got a filesystem event in $path");
+    my $add = $self->scandir($path);
+    $self->handle_image($_) for @$add;
+  }
+  elsif ($self->{filter}->($path)) {
+    $self->handle_image($path);
+  }
 }
 
 sub handle_image {

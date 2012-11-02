@@ -109,7 +109,10 @@ sub options {
   my ($self, $httpd, $req) = @_;
 
   if ($req->method eq "POST") {
-    $self->{options} = { map {$_ => $req->parm($_)} $req->params };
+    $self->{options} = {
+      %{$self->{options}},
+      map {$_ => $req->parm($_)} $req->params
+    };
     $req->respond({redirect => "/"});
     return;
   }
