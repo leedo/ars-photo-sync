@@ -39,8 +39,8 @@ sub start {
   }, $self->{source});
 
   $self->log("monitoring $self->{source} for changes");
-  my ($r) = split ".", `uname -r`;
 
+  my ($r) = split /\./, qx{uname -r};
   my $fs = $self->{fs} = Mac::FSEvents->new({
     path => $self->{source},
     latency => 0.5,
@@ -63,14 +63,26 @@ sub stop {
 sub handle_event {
   my ($self, $event) = @_;
   my $path = $event->path;
-  if (-d $path) {
-    $self->log("got a filesystem event in $path");
-    my $add = $self->scandir($path);
-    $self->handle_image($_) for @$add;
-  }
-  elsif ($self->{filter}->($path)) {
-    $self->handle_image($path);
-  }
+  my $add = $self->scanpath($path);
+  $self->queue_image($_) for @$add;
+}
+
+sub queue_image {
+  my ($self, $path) = @_;
+  $self->{queue}{$path} ||= {
+    time => time,
+    size => (stat($path))[9],
+    watcher => AE::timer 0.25, 0.25, sub {
+      my $info = $self->{queue}{$path};
+      my $size = (stat($path))[9];
+      if ($info->{size} == $size) {
+        delete $self->{queue}{$path};
+        $self->handle_image($path);
+        return;
+      }
+      $self->{queue}{$path}{size} = $size;
+    }
+  };
 }
 
 sub handle_image {
@@ -129,22 +141,36 @@ sub handle_image {
   });
 }
 
-sub scandir {
-  my ($self, $dir) = @_;
-  $dir =~ s/\/$//; #trailing slash
-  opendir my $fh, $dir;
+sub scanpath {
+  my ($self, $path) = @_;
 
-  return [ 
-    grep {
-      my $mtime = (stat($_))[9];
-      my $prev = $self->{seen}{$_} || 0;
-      $self->{seen}{$_} = $mtime;
-      $prev != $mtime;
-    }
-    grep { $self->{filter}->($_) }
-     map { "$dir/$_" }
-    readdir $fh
-  ];
+  $self->{_filter} ||= sub {
+    my $f = shift;
+    return unless $self->{filter}->($f);
+    my $mtime = (stat($f))[9];
+    my $prev = $self->{seen}{$f} || 0;
+    $self->{seen}{$f} = $mtime;
+    $prev != $mtime;
+  };
+
+  if (-f $path) {
+    return [$self->{_filter}->($path) ? $path : ()];
+  }
+  elsif (-d $path) {
+    $path =~ s/\/$//; #trailing slash
+    opendir my $fh, $path;
+
+    return [ 
+      grep {$self->{_filter}->($_) }
+      map { "$path/$_" }
+      readdir $fh
+    ];
+  }
+  elsif (!-e $path) {
+    delete $self->{seen}{$path};
+  }
+
+  return [];
 }
 
 1;
