@@ -16,12 +16,20 @@ sub new {
 
   return bless {
     log       => $args{log} || sub { warn @_ },
-    filter    => sub {
-      my $f = shift;
-      -f $f && $f =~ /\.(?:jpe?g|png|gif)$/i;
+    filter    => $args{filter} || sub {
+      $_[0] =~ /\.(?:jpe?g|png|gif)$/i;
     },
     map {$_ => $args{$_}} @required
   }, $class;
+}
+
+sub check {
+  my ($self, $f) = @_;
+  return unless -f $f && $self->{filter}->($f);
+  my $mtime = (stat($f))[9];
+  my $prev = $self->{seen}{$f} || 0;
+  $self->{seen}{$f} = $mtime;
+  $prev != $mtime;
 }
 
 sub log {
@@ -34,9 +42,7 @@ sub start {
   $self->{cv}->begin;
   $self->log("starting", "scanning $self->{source}");
 
-  File::Find::find(sub {
-    $self->{seen}{$File::Find::name} = (stat($File::Find::name))[9];
-  }, $self->{source});
+  File::Find::find(sub{$self->check($File::Find::name)}, $self->{source});
 
   $self->log("monitoring $self->{source} for changes");
 
@@ -144,24 +150,15 @@ sub handle_image {
 sub scanpath {
   my ($self, $path) = @_;
 
-  $self->{_filter} ||= sub {
-    my $f = shift;
-    return unless $self->{filter}->($f);
-    my $mtime = (stat($f))[9];
-    my $prev = $self->{seen}{$f} || 0;
-    $self->{seen}{$f} = $mtime;
-    $prev != $mtime;
-  };
-
   if (-f $path) {
-    return [$self->{_filter}->($path) ? $path : ()];
+    return [$self->check($path) ? $path : ()];
   }
   elsif (-d $path) {
     $path =~ s/\/$//; #trailing slash
     opendir my $fh, $path;
 
     return [ 
-      grep {$self->{_filter}->($_) }
+      grep {$self->check($_) }
       map { "$path/$_" }
       readdir $fh
     ];
