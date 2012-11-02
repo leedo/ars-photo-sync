@@ -54,6 +54,7 @@
         margin: 0;
         padding: 10px;
         padding-left: 0px;
+        font-family: Menlo, monospace;
       }
       ol#log li {
         margin: 0;
@@ -93,6 +94,7 @@
       $(document).ready(function() {
         var log = $('#log');
         var options = $('#options');
+        var loaded = false;
 
         $('#start').on('click', function() {
           $.ajax({
@@ -150,11 +152,17 @@
 
         function sync_state(data) {
           data.working ? started() : stopped();
+          var real = log[0].scrollHeight;
+          var scroll = log.scrollTop() + log.outerHeight();
           log.html(
             $.map(data.log, function(line) {
               return $('<li/>').html(line);
             })
           );
+          if (!loaded || scroll >= real) {
+            log.scrollTop(real);
+            loaded = true;
+          }
         }
       });
     </script>
