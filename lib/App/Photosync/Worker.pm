@@ -1,10 +1,12 @@
 package App::Photosync::Worker;
 
-use File::Find;
 use Mac::FSEvents ':flags';
 use AnyEvent;
 use AnyEvent::Util ();
+use AnyEvent::AIO;
+use IO::AIO;
 use App::Photosync::S3;
+use List::Util qw/first/;
 
 sub new {
   my ($class, %args) = @_;
@@ -23,15 +25,6 @@ sub new {
   }, $class;
 }
 
-sub check {
-  my ($self, $f) = @_;
-  return unless -f $f && $self->{filter}->($f);
-  my $mtime = (stat($f))[9];
-  my $prev = $self->{seen}{$f} || 0;
-  $self->{seen}{$f} = $mtime;
-  $prev != $mtime;
-}
-
 sub log {
   my $self = shift;
   $self->{log}->(__PACKAGE__.": $_") for @_;
@@ -40,37 +33,41 @@ sub log {
 sub start {
   my $self = shift;
   $self->{cv}->begin;
-  $self->log("starting", "scanning $self->{source}");
+  $self->log("starting", "scanning $self->{source}, this could take a while");
 
-  File::Find::find(sub{$self->check($File::Find::name)}, $self->{source});
+  $self->{scanner} = scan_dir($self->{source}, $self->{filter}, sub {
+    $self->{seen} = shift;
+    $self->log("monitoring $self->{source} for changes");
+    my ($r) = split /\./, qx{uname -r};
+    my $fs = $self->{fs} = Mac::FSEvents->new({
+      path => $self->{source},
+      latency => 0.5,
+      flags => $r > 11 ? FILE_EVENTS : NONE,
+    });
 
-  $self->log("monitoring $self->{source} for changes");
-
-  my ($r) = split /\./, qx{uname -r};
-  my $fs = $self->{fs} = Mac::FSEvents->new({
-    path => $self->{source},
-    latency => 0.5,
-    flags => $r > 11 ? FILE_EVENTS : NONE,
+    $self->{io} = AE::io $fs->watch, 0, sub {
+      $self->handle_event($_) for $fs->read_events;
+    };
   });
-
-  $self->{io} = AE::io $fs->watch, 0, sub {
-    $self->handle_event($_) for $fs->read_events;
-  };
 }
 
 sub stop {
   my $self = shift;
   $self->{cv}->end;
   $self->log("stopped");
-  $self->{fs}->stop;
   delete $self->{io};
+  $self->{fs}->stop if $self->{fs};
+  $self->{scanner}->croak("canceled") if $self->{scanner};
 }
 
 sub handle_event {
   my ($self, $event) = @_;
   my $path = $event->path;
-  my $add = $self->scanpath($path);
-  $self->queue_image($_) for @$add;
+  my $add = $self->check_path($path);
+  for my $path (@$add) {
+    $self->{seen}{$path} = 1;
+    $self->queue_image($path);
+  }
 }
 
 sub queue_image {
@@ -147,18 +144,23 @@ sub handle_image {
   });
 }
 
-sub scanpath {
+sub check_file {
+  my ($self, $f) = @_;
+  -f $f && !exists $self->{seen}{$f} && $self->{filter}->($f);
+}
+
+sub check_path {
   my ($self, $path) = @_;
 
   if (-f $path) {
-    return [$self->check($path) ? $path : ()];
+    return [$self->check_file($path) ? $path : ()];
   }
   elsif (-d $path) {
     $path =~ s/\/$//; #trailing slash
     opendir my $fh, $path;
 
     return [ 
-      grep {$self->check($_) }
+      grep {$self->check_file($_) }
       map { "$path/$_" }
       readdir $fh
     ];
@@ -168,6 +170,49 @@ sub scanpath {
   }
 
   return [];
+}
+
+sub scan_dir {
+  my ($path, $filter, $cb) = @_;
+  my (@queue, %matches);
+  my $cv = AE::cv;
+
+  my $enqueue = sub {
+    $cv->begin;
+    push @queue, shift;
+  };
+
+  $enqueue->($path);
+
+  my $scan = sub {
+    my $path = shift;
+    aio_scandir $path, 0, sub {
+      my ($dirs, $nondirs) = @_;
+      for (@$nondirs) {
+        $matches{"$path/$_"} = 1 if $filter->("$path/$_");
+      }
+      $enqueue->("$path/$_") for @$dirs;
+      $cv->end;
+    };
+  };
+
+  my $t; $t = AE::idle sub {
+    if (my $dir = pop @queue) {
+      $scan->($dir);
+    }
+  };
+
+  $cv->cb(sub {
+    eval {shift->recv};
+    undef $t;
+    if ($@) {
+      warn "scanner stopped";
+      return;
+    }
+    $cb->(\%matches);
+  });
+
+  return $cv;
 }
 
 1;
