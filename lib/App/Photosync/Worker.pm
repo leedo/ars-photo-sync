@@ -1,5 +1,6 @@
 package App::Photosync::Worker;
 
+use v5.12;
 use Mac::FSEvents ':flags';
 use AnyEvent;
 use AnyEvent::Util ();
@@ -36,7 +37,8 @@ sub start {
   $self->log("starting", "scanning $self->{source}, this could take a while");
 
   $self->{scanner} = scan_dir($self->{source}, $self->{filter}, sub {
-    $self->{seen} = shift;
+    my $matches = shift;
+    $self->{seen} = map {$_ => 1} @$matches;;
     $self->log("monitoring $self->{source} for changes");
     my ($r) = split /\./, qx{uname -r};
     my $fs = $self->{fs} = Mac::FSEvents->new({
@@ -174,7 +176,7 @@ sub check_path {
 
 sub scan_dir {
   my ($path, $filter, $cb) = @_;
-  my (@queue, %matches);
+  my (@queue, @matches);
   my $cv = AE::cv;
 
   my $enqueue = sub {
@@ -189,14 +191,14 @@ sub scan_dir {
     aio_scandir $path, 0, sub {
       my ($dirs, $nondirs) = @_;
       for (@$nondirs) {
-        $matches{"$path/$_"} = 1 if $filter->("$path/$_");
+        push @matches, "$path/$_" if $filter->("$path/$_");
       }
       $enqueue->("$path/$_") for @$dirs;
       $cv->end;
     };
   };
 
-  my $t; $t = AE::idle sub {
+  my $t = AE::idle sub {
     if (my $dir = pop @queue) {
       $scan->($dir);
     }
@@ -209,7 +211,7 @@ sub scan_dir {
       warn "scanner stopped";
       return;
     }
-    $cb->(\%matches);
+    $cb->(\@matches);
   });
 
   return $cv;
